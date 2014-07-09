@@ -38,6 +38,11 @@ gem 'spring',        group: :development
 # Use debugger
 gem 'debugger', group: [:development, :test]
 
+
+# WebSocket
+gem 'websocket-rails'
+
+
 # rspec
 group :test do
   gem "rspec"
