@@ -1,4 +1,6 @@
 Rails.application.routes.draw do
+  get 'chat/index'
+
   resources :tasks
 
   # The priority is based upon order of creation: first created -> highest priority.
