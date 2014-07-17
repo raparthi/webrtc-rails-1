@@ -6,6 +6,6 @@ class WebsocketChatController < WebsocketRails::BaseController
     receive_message = message()
   
     # websocket_chatイベントで接続しているクライアントにブロードキャスト
-    broadcast_message(:websocket_chat, receive_message);
+    broadcast_message(:websocket_chat, receive_message)
   end
 end

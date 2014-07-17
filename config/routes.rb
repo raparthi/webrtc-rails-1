@@ -1,4 +1,6 @@
 Rails.application.routes.draw do
+  get 'tv_chat/index'
+
   get 'chat/index'
 
   resources :tasks

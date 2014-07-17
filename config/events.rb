@@ -15,5 +15,25 @@ WebsocketRails::EventMap.describe do
   # websocket_chatイベントのマッピング
   # 第一引数がイベント名、第二引数がコントローラー、第三引数がメソッド
   
-  subscribe :websocket_chat, to: WebsocketChatController, with_method: :receive_message
+  subscribe :websocket_chat, 
+    to: WebsocketChatController,
+    with_method: :receive_message
+    
+    
+  subscribe :on_open,
+    to: WebsocketTvchatController,
+    with_method: :open_connection
+    
+  subscribe :sendOffer,
+    :to => WebsocketTvchatController,
+    :with_method => :sendOffer
+    
+  subscribe :sendAnswer,
+    :to => WebsocketTvchatController,
+    :with_method => :sendAnswer
+    
+  subscribe :candidate,
+    :to => WebsocketTvchatController,
+    :with_method => :candidate
+
 end
