@@ -407,7 +407,7 @@ $(function() {
 	        // 自分のpeerにカメラストリームを接続させる
 	        // RTC接続確立後に相手のストリームに渡される
 	        localStream = stream;
-			
+			 
 		}, function(error) {
 			alert(error.name);
 		});
