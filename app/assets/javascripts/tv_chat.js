@@ -204,17 +204,7 @@
 $(function() {
 	
 	// GUID FUNCTION
-	var GUID = (function() {
-	  function s4() {
-	    return Math.floor((1 + Math.random()) * 0x10000)
-	               .toString(16)
-	               .substring(1);
-	  };
-	  return function() {
-	    return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
-	           s4() + '-' + s4() + s4() + s4();
-	  };
-	})()();
+	var CLIENT_ID;
 	
 	// ベンダープレフィックスを除外
 	RTCPeerConnection = webkitRTCPeerConnection ||
@@ -234,6 +224,28 @@ $(function() {
 	// WebSocket接続
 	// var dispatcher = new WebSocketRails('webrtc-rials-c9-kuriya0909.c9.io/websocket');
 	var dispatcher = new WebSocketRails('localhost:3000/websocket');
+	
+		// OnOpenが呼び出されているか確かめる
+	dispatcher.bind("on_open", function(message) {
+		console.log("broadcast on_open log");
+		
+		var json = JSON.parse(message);
+
+		console.log("connection_id is " + json.connection_id);
+	});
+	
+	// WebSocketにコネクションを張った時に呼ばれるイベント
+	dispatcher.on_open = function(data) {
+		console.log("on_open log");
+		
+		// WebSocketのConnectionIdをClientIDとして使用する
+		CLIENT_ID = data.connection_id;
+		
+		var message = {
+			connection_id: data.connection_id
+		};
+		dispatcher.trigger("on_open", JSON.stringify(message));
+	};
 
 		
 	var mediaConstraints = {
@@ -263,7 +275,7 @@ $(function() {
 		console.log("------add localStream------");
 		peerConnection.createOffer(function(sessionDescription){
 			peerConnection.setLocalDescription(sessionDescription);
-			dispatcher.trigger("sendOffer", JSON.stringify({sdp: sessionDescription, guid: GUID}));
+			dispatcher.trigger("sendOffer", JSON.stringify({sdp: sessionDescription, guid: CLIENT_ID}));
 			console.log("Create Offer Success");
 		},
 		function() {
@@ -286,7 +298,7 @@ $(function() {
 		peer.onicecandidate = function (evt) {
 			if (evt.candidate) {
 				console.log(evt.candidate);
-				dispatcher.trigger("candidate", JSON.stringify({ candidate: evt.candidate, guid: GUID}));
+				dispatcher.trigger("candidate", JSON.stringify({ candidate: evt.candidate, guid: CLIENT_ID}));
 			} else {
 				console.log("End of candidates.");
 			}
@@ -306,7 +318,7 @@ $(function() {
 	dispatcher.bind("sendOffer", onOffer);
 	
 	function onOffer(evt) {
-		if(evt.guid == GUID) return;
+		if(evt.guid == CLIENT_ID) return;
 		console.log("------receive offer------");
 		
 		var json = JSON.parse(evt);
@@ -322,7 +334,7 @@ $(function() {
 	
 	function sendAnswer(evt) {
 		peerConnection.createAnswer(function(sessionDescription) {
-			dispatcher.trigger("sendAnswer", JSON.stringify({sdp: sessionDescription, guid: GUID}));
+			dispatcher.trigger("sendAnswer", JSON.stringify({sdp: sessionDescription, guid: CLIENT_ID}));
 			peerConnection.setLocalDescription(sessionDescription);
 			console.log("Create Answer Success");
 		},
@@ -349,7 +361,7 @@ $(function() {
 	}
 	
 	function setAnswer(evt) {
-		if(evt.guid == GUID) return;
+		if(evt.guid == CLIENT_ID) return;
 
 		console.log("------receive answer------");
 		
