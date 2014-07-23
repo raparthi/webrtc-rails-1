@@ -1,6 +1,6 @@
 // // Place all the behaviors and hooks related to the matching controller here.
 // // All this logic will automatically be available in application.js.
-// 
+//  上のコードだと動かない
 // $(function() {
 	// // GUID FUNCTION
 	// var GUID = (function() {
@@ -203,7 +203,7 @@
 
 $(function() {
 	
-	// GUID FUNCTION
+	// CLIENT FUNCTION
 	var CLIENT_ID;
 	
 	// ベンダープレフィックスを除外
@@ -212,7 +212,7 @@ $(function() {
 		RTCPeerConnection ||
 		msRTCPeerConnection;
 
-// navigator.getUserMediaに統一
+    // navigator.getUserMediaに統一
 	navigator.getUserMedia = navigator.getUserMedia ||
 		navigator.webkitGetUserMedia ||
 		navigator.mozGetUserMedia ||
@@ -222,7 +222,7 @@ $(function() {
 	URL = window.URL || window.webkitURL;
 	
 	// WebSocket接続
-	// var dispatcher = new WebSocketRails('webrtc-rials-c9-kuriya0909.c9.io/websocket');
+	//var dispatcher = new WebSocketRails('webrtc-railss-c9-kuriya0909.c9.io/websocket');
 	var dispatcher = new WebSocketRails('localhost:3000/websocket');
 	
 		// OnOpenが呼び出されているか確かめる
@@ -255,7 +255,7 @@ $(function() {
 		}
 	};
 	
-	var peerConnection;
+	var peerConnection = prepareNewConnection();
 	var localStream, remoteStream;
 	
 	// Click Event of Connect
@@ -267,12 +267,15 @@ $(function() {
 	
 	function sendOffer() {
 		if (!peerConnection) {
-	  		console.log('peerConnection alreay exist!');
+			console.log('peerConnection not exist! AND Create peerConnection');
 	  		peerConnection = prepareNewConnection();	
 		}
 		
+		console.log("sendOffer() iceConnectionState is " + peerConnection.iceConnectionState);
+
 		peerConnection.addStream(localStream);
 		console.log("------add localStream------");
+
 		peerConnection.createOffer(function(sessionDescription){
 			peerConnection.setLocalDescription(sessionDescription);
 			dispatcher.trigger("sendOffer", JSON.stringify({sdp: sessionDescription, guid: CLIENT_ID}));
@@ -290,9 +293,10 @@ $(function() {
 	  	}
 		
 		var peer = new RTCPeerConnection({ 
-		"iceServers": [{
-			"url": "stun:stun.l.google.com:19302"
-			}]
+    		"iceServers": [
+    		    { "url": "stun:stun.l.google.com:19302"}, 
+    			{ "url": "turn:user@turnserver.com", "credential": "pass"}
+			]
 		});
 		
 		peer.onicecandidate = function (evt) {
@@ -311,6 +315,10 @@ $(function() {
 		
 		peer.onaddstream = onRemoteStreamAdded;
 		
+		peer.oniceconnectionstatechange = function(evt) {
+		    console.log("ICE connection state change: " + evt.target.iceConnectionState);
+		};
+
 		return peer;
 	}
 	
@@ -318,24 +326,30 @@ $(function() {
 	dispatcher.bind("sendOffer", onOffer);
 	
 	function onOffer(evt) {
-		if(evt.guid == CLIENT_ID) return;
+	    var json = JSON.parse(evt);
+
+		if(json.guid == CLIENT_ID) return;
 		console.log("------receive offer------");
 		
-		var json = JSON.parse(evt);
+		console.log("onOffer() iceConnectionState is " + peerConnection.iceConnectionState);
 		
 		setOffer(json);
 		sendAnswer(json);
 	}
 	
 	function setOffer(evt) {
+	    console.log("setOffer() iceConnectionState is " + peerConnection.iceConnectionState);
 		peerConnection = prepareNewConnection();
 		peerConnection.setRemoteDescription(new RTCSessionDescription(evt.sdp));
 	}
 	
 	function sendAnswer(evt) {
-		peerConnection.createAnswer(function(sessionDescription) {
-			dispatcher.trigger("sendAnswer", JSON.stringify({sdp: sessionDescription, guid: CLIENT_ID}));
-			peerConnection.setLocalDescription(sessionDescription);
+	    if (!peerConnection || peerConnection.remoteDescription.type != "offer")return;
+
+	    console.log("sendAnswer() iceConnectionState is " + peerConnection.iceConnectionState);
+		peerConnection.createAnswer(function(sdp) {
+		    peerConnection.setLocalDescription(sdp);
+			dispatcher.trigger("sendAnswer", JSON.stringify({sdp: sdp, guid: CLIENT_ID}));
 			console.log("Create Answer Success");
 		},
 		function() {
@@ -353,7 +367,9 @@ $(function() {
 			console.log("Error peerConnection NOT EXIST!!");
 			return;
 		}
-		
+
+		console.log("onAnswer() iceConnectionState is " + peerConnection.iceConnectionState);
+
 		// peerConnection.createOffer(function(sdp) {
 			// peerConnection.setLocalDescription(sdp);
 		// });
@@ -364,6 +380,7 @@ $(function() {
 		if(evt.guid == CLIENT_ID) return;
 
 		console.log("------receive answer------");
+		console.log("setAnswer() iceConnectionState is " + peerConnection.iceConnectionState);
 		
 		var sdp = new RTCSessionDescription(evt.sdp);
 		// if (evt.guid != GUID) {
@@ -376,19 +393,23 @@ $(function() {
 	
 	function onCandidate(evt) {
 	  var json = JSON.parse(evt);
-	  console.log("------callback of candidate start------");
-	  var candidate = new RTCIceCandidate(json.candidate);
-	  
-	  console.log("test " + candidate);
-	  console.log("peerConnection is " + peerConnection);
-	  
-	  peerConnection.addIceCandidate(candidate);
-	  console.log("------callback of candidate complete------");
+	  console.log("!!!!!!callback of candidate!!!!!!");
+	  console.log("onCandidate() iceConnectionState is " + peerConnection.iceConnectionState);
+
+	  peerConnection.addIceCandidate(new RTCIceCandidate(json.candidate));
 	}
 	
-	function onRemoteStreamAdded(event) {
+	function onRemoteStreamAdded(evt) {
       console.log("Added Remote Stream");
-      $("#remote_tv")[0].src = URL.createObjectURL(event.stream);
+      
+      console.log("Remote Stream is " + evt.stream);
+      $("#remote_tv")[0].src = URL.createObjectURL(evt.stream);
+      $("#remote_tv")[0].play();
+
+      console.log("onRemoteStreamAdded() iceConnectionState is " + peerConnection.iceConnectionState);
+      console.log("srcElement's iceConnectionState is " + evt.srcElement.iceConnectionState);
+      console.log("target's iceConnectionState is " + evt.target.iceConnectionState);
+      console.log("currentTarget's iceConnectionState is " + evt.currentTarget.iceConnectionState);
     }
 	
 	// navigator.getUserMediaを実行
