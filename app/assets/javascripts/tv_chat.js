@@ -250,8 +250,9 @@ $(function() {
 		
 	var mediaConstraints = {
 		'mandatory': {
-				'OfferToReceiveAudio':false, 
-				'OfferToReceiveVideo':true
+				'OfferToReceiveAudio': false, 
+				'OfferToReceiveVideo': true,
+				'IceRestart': true
 		}
 	};
 	
@@ -267,11 +268,11 @@ $(function() {
 	
 	function sendOffer() {
 		if (!peerConnection) {
-			console.log('peerConnection not exist! AND Create peerConnection');
+			//console.log('peerConnection not exist! AND Create peerConnection');
 	  		peerConnection = prepareNewConnection();	
 		}
 		
-		console.log("sendOffer() iceConnectionState is " + peerConnection.iceConnectionState);
+		//console.log("sendOffer() iceConnectionState is " + peerConnection.iceConnectionState);
 
 		peerConnection.addStream(localStream);
 		console.log("------add localStream------");
@@ -292,19 +293,67 @@ $(function() {
 	  		return peerConnection;
 	  	}
 		
-		var peer = new RTCPeerConnection({ 
-    		"iceServers": [
-    		    { "url": "stun:stun.l.google.com:19302"}, 
-    			{ "url": "turn:user@turnserver.com", "credential": "pass"}
-			]
-		});
+		var peer = new RTCPeerConnection({
+          'iceServers': [
+            // {url:'stun:stun01.sipphone.com'},
+            // {url:'stun:stun.ekiga.net'},
+            // {url:'stun:stun.fwdnet.net'},
+            // {url:'stun:stun.ideasip.com'},
+            // {url:'stun:stun.iptel.org'},
+            // {url:'stun:stun.rixtelecom.se'},
+            // {url:'stun:stun.schlund.de'},
+            {url:'stun:stun.l.google.com:19302'},
+            // {url:'stun:stun1.l.google.com:19302'},
+            // {url:'stun:stun2.l.google.com:19302'},
+            // {url:'stun:stun3.l.google.com:19302'},
+            // {url:'stun:stun4.l.google.com:19302'},
+            // {url:'stun:stunserver.org'},
+            // {url:'stun:stun.softjoys.com'},
+            // {url:'stun:stun.voiparound.com'},
+            // {url:'stun:stun.voipbuster.com'},
+            // {url:'stun:stun.voipstunt.com'},
+            // {url:'stun:stun.voxgratia.org'},
+            // {url:'stun:stun.xten.com'},
+            // { url: 'stun:stun.skyway.io:3478' },
+            // {
+            //     url: 'turn:numb.viagenie.ca',
+            //     credential: 'muazkh',
+            //     username: 'webrtc@live.com'
+            // },
+            // {
+            //     url: 'turn:192.158.29.39:3478?transport=udp',
+            //     credential: 'JZEOEt2V3Qb0y27GRntt2u2PAYA=',
+            //     username: '28224511:1379330808'
+            // },
+            // {
+            //     url: 'turn:192.158.29.39:3478?transport=tcp',
+            //     credential: 'JZEOEt2V3Qb0y27GRntt2u2PAYA=',
+            //     username: '28224511:1379330808'
+            // },
+            // // {
+            //     url: 'turn:homeo@turn.bistri.com:80',
+            //     credential: 'homeo'
+            // }
+          ]
+        });
 		
 		peer.onicecandidate = function (evt) {
+			console.log("iceGatheringState is " + evt.target.iceGatheringState);
+			
 			if (evt.candidate) {
 				console.log(evt.candidate);
 				dispatcher.trigger("candidate", JSON.stringify({ candidate: evt.candidate, guid: CLIENT_ID}));
 			} else {
 				console.log("End of candidates.");
+				
+				// var iceState = peerConnection.iceConnectionState;
+				
+				// if (iceState == "connected" || iceState == "complete")return;
+				
+				// if ((iceState == "checking" || iceState == "failed") || evt.target.iceGatheringState == "complete") {
+				//     console.log("------Resend offer on the end of candidate------");
+				//     sendOffer();
+				// }
 			}
 		};
 		
@@ -317,6 +366,17 @@ $(function() {
 		
 		peer.oniceconnectionstatechange = function(evt) {
 		    console.log("ICE connection state change: " + evt.target.iceConnectionState);
+		    
+		    if(peer.iceConnectionState == 'completed') {
+		      var message = 'WebRTC RTP ports are connected to UDP. ';
+		      message += 'Wait a few seconds for remote stream to be started flowing.';
+		      alert(message);
+		    }
+		    // don't move
+		    // if (evt.target.iceConnectionState == "failed") {
+		    // 	sendOffer();
+		    // 	console.log("------Resend Offer oniceconnectionstatechange------");
+		    // }
 		};
 
 		return peer;
@@ -331,14 +391,14 @@ $(function() {
 		if(json.guid == CLIENT_ID) return;
 		console.log("------receive offer------");
 		
-		console.log("onOffer() iceConnectionState is " + peerConnection.iceConnectionState);
+		// console.log("onOffer() iceConnectionState is " + peerConnection.iceConnectionState);
 		
 		setOffer(json);
 		sendAnswer(json);
 	}
 	
 	function setOffer(evt) {
-	    console.log("setOffer() iceConnectionState is " + peerConnection.iceConnectionState);
+	    // console.log("setOffer() iceConnectionState is " + peerConnection.iceConnectionState);
 		peerConnection = prepareNewConnection();
 		peerConnection.setRemoteDescription(new RTCSessionDescription(evt.sdp));
 	}
@@ -346,7 +406,7 @@ $(function() {
 	function sendAnswer(evt) {
 	    if (!peerConnection || peerConnection.remoteDescription.type != "offer")return;
 
-	    console.log("sendAnswer() iceConnectionState is " + peerConnection.iceConnectionState);
+	    // console.log("sendAnswer() iceConnectionState is " + peerConnection.iceConnectionState);
 		peerConnection.createAnswer(function(sdp) {
 		    peerConnection.setLocalDescription(sdp);
 			dispatcher.trigger("sendAnswer", JSON.stringify({sdp: sdp, guid: CLIENT_ID}));
@@ -368,7 +428,7 @@ $(function() {
 			return;
 		}
 
-		console.log("onAnswer() iceConnectionState is " + peerConnection.iceConnectionState);
+		// console.log("onAnswer() iceConnectionState is " + peerConnection.iceConnectionState);
 
 		// peerConnection.createOffer(function(sdp) {
 			// peerConnection.setLocalDescription(sdp);
@@ -380,7 +440,7 @@ $(function() {
 		if(evt.guid == CLIENT_ID) return;
 
 		console.log("------receive answer------");
-		console.log("setAnswer() iceConnectionState is " + peerConnection.iceConnectionState);
+		// console.log("setAnswer() iceConnectionState is " + peerConnection.iceConnectionState);
 		
 		var sdp = new RTCSessionDescription(evt.sdp);
 		// if (evt.guid != GUID) {
@@ -393,10 +453,16 @@ $(function() {
 	
 	function onCandidate(evt) {
 	  var json = JSON.parse(evt);
-	  console.log("!!!!!!callback of candidate!!!!!!");
+	  // console.log("!!!!!!callback of candidate!!!!!!");
 	  console.log("onCandidate() iceConnectionState is " + peerConnection.iceConnectionState);
 
-	  peerConnection.addIceCandidate(new RTCIceCandidate(json.candidate));
+	  peerConnection.addIceCandidate(new RTCIceCandidate(json.candidate),
+	    function(evt) { 
+	      console.log("success"); 
+	    }, 
+	    function(evt) { 
+	          console.log("error"); 
+	    });
 	}
 	
 	function onRemoteStreamAdded(evt) {
